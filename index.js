@@ -4,7 +4,7 @@
 
 	var rp = require('request-promise');
 	var fs = require('fs-extra');
-	var path = require('path');	
+	var path = require('path');
 	var http = require('http');
 	var Promise = require('bluebird');
 	var pjson = require('./package.json');
@@ -82,28 +82,36 @@
 
 	var spotifyPlaylist = fs.readFileSync('playlist.txt').toString().match(/([a-z0-9]{22})/img);
 
+	console.log('Playlist size: ' + spotifyPlaylist.length);
+	spotifyPlaylist = spotifyPlaylist.filter(function(elem, pos, arr) {
+		return arr.indexOf(elem) === pos;
+	});
+	console.log('After removing duplicates: ' + spotifyPlaylist.length);
+
 	Promise.map(spotifyPlaylist, function(spotifyId) {
 
-		return new Promise(function(resolve, reject){
+			return new Promise(function(resolve, reject) {
 
-			searchSpotify(spotifyId)
-			.then(function(r) {
-				return searchVK(r.artist, r.track, r.duration);
-			})
-			.then(function(track) {
-				var dest = trackDir + track.artist + ' - ' + track.title + '.mp3';
-				downloadTrack(track.url, dest, resolve);
-			})
-			.catch(function(err){
-				console.log('Error for track id: '+ spotifyId + '\n' + err);
-				resolve();
+				searchSpotify(spotifyId)
+					.then(function(r) {
+						return searchVK(r.artist, r.track, r.duration);
+					})
+					.then(function(track) {
+						var dest = trackDir + track.artist + ' - ' + track.title + '.mp3';
+						downloadTrack(track.url, dest, resolve);
+					})
+					.catch(function(err) {
+						console.log('Error for track id: ' + spotifyId + '\n' + err);
+						resolve();
+					});
 			});
-		});
 
-	},{concurrency: 3})
-	.then(function(){
-		console.log('Finished!');
-	});
+		}, {
+			concurrency: 3
+		})
+		.then(function() {
+			console.log('Finished!');
+		});
 
 
 
