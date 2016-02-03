@@ -2,6 +2,7 @@
 
 	'use strict';
 
+	var open = require('open');
 	var rp = require('request-promise');
 	var fs = require('fs-extra');
 	var path = require('path');
@@ -12,26 +13,36 @@
 	var entities = new Entities();
 	var trackDir = 'tracks' + path.sep;
 
+	var appID = '5244531';
+
 	fs.ensureDirSync(trackDir);
 
 	console.log(pjson.name + ' ' + pjson.version);
 
+
+
 	try {
 		var token = fs.readFileSync('token.txt');
 	} catch (e) {
-		console.log('To generate token create standalone application: https://vk.com/editapp?act=create');
-		console.log('Get the APP_ID and replace it in the URL below');
-		console.log('Go to https://oauth.vk.com/authorize?client_id=APP_ID&redirect_uri=https://oauth.vk.com/blank.html&response_type=token&scope=audio');
-		console.log('Save the token in  a file named token.txt in the current directory.');
+		//console.log('To generate token create standalone application: https://vk.com/editapp?act=create');
+		//console.log('Get the APP_ID and replace it in the URL below');
+		//console.log('Go to https://oauth.vk.com/authorize?client_id=APP_ID&redirect_uri=https://oauth.vk.com/blank.html&response_type=token&scope=audio');
+
+		console.log('Save the access_token from resulting url in a file named token.txt in the current directory.');
+		open('https://oauth.vk.com/authorize?client_id=' + appID + '&redirect_uri=https://oauth.vk.com/blank.html&response_type=token&scope=audio');
 		return;
 	}
+
+	var safeFileName = function(str){
+		return str.split('/').join(' ').split('\\').join('');
+	};
 
 	var searchVK = function(artist, track, seconds) {
 		var q = encodeURIComponent(artist + ' ' + track).replace('%26', '');
 		var url = 'https://api.vk.com/method/audio.search?q=' + q + '&count=10&sort=2&access_token=' + token;
 		console.log('Found: ', artist, track, seconds);
 		return rp(url).then(function(result) {
-			//console.log(url);
+			//console.log(result);
 			var tracks = JSON.parse(result).response;
 			var count = tracks.shift();
 			if (count === 0) {
@@ -65,6 +76,20 @@
 	};
 
 	var downloadTrack = function(url, dest, cb) {
+
+
+		var stat;
+		try {
+			stat = fs.statSync(dest);
+		} catch (err) {	}
+
+		if (stat) {
+			console.log('Exists: ' + dest);
+			cb();
+			return;
+		}
+
+
 		console.log('Downloading: ' + dest);
 		var file = fs.createWriteStream(dest);
 		var request = http.get(url, function(response) {
@@ -97,7 +122,7 @@
 						return searchVK(r.artist, r.track, r.duration);
 					})
 					.then(function(track) {
-						var dest = trackDir + track.artist + ' - ' + track.title + '.mp3';
+						var dest = trackDir + safeFileName(track.artist + ' - ' + track.title) + '.mp3';
 						downloadTrack(track.url, dest, resolve);
 					})
 					.catch(function(err) {
